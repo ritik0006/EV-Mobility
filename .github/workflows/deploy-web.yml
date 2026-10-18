@@ -1,0 +1,50 @@
+# Builds the Flutter web app in the cloud and publishes it on GitHub Pages (no Flutter needed on your PC).
+# One-time setup: Settings > Pages > Source = "GitHub Actions"; Settings > Secrets and variables > Actions > Variables:
+#   API_BASE = https://YOUR-RENDER-SERVICE.onrender.com/api
+name: Deploy web app to GitHub Pages
+on:
+  push:
+    branches: [main]
+    paths: ["flutter_app/**", ".github/workflows/deploy-web.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Check API_BASE
+        run: |
+          if [ -z "${{ vars.API_BASE }}" ]; then echo "Create the repository variable API_BASE (your Render URL + /api)"; exit 1; fi
+      - name: Build Flutter web
+        working-directory: flutter_app
+        run: |
+          flutter create --platforms web --project-name ev_rent_app ../_web_build
+          rm -rf ../_web_build/lib ../_web_build/test
+          cp -r lib ../_web_build/lib
+          cp pubspec.yaml ../_web_build/pubspec.yaml
+          cd ../_web_build
+          flutter pub get
+          flutter build web --release --base-href "/${{ github.event.repository.name }}/" --dart-define=API_BASE=${{ vars.API_BASE }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _web_build/build/web
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

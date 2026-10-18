@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'api.dart';
 
-Future<String?> takePhoto() async =>
-    (await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 70))?.path;
+Future<XFile?> takePhoto() => ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 70);
 
 /// Generic "load a list from the API" helper widget.
 class ApiList extends StatefulWidget {
@@ -123,7 +122,7 @@ class KycTab extends StatefulWidget {
 
 class _KycTabState extends State<KycTab> {
   String status = '...';
-  String? doc, selfie;
+  XFile? doc, selfie;
 
   @override
   void initState() {

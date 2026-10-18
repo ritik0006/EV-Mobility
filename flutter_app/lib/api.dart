@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Api {
   // Android emulator -> your PC. On a real phone use your PC's LAN IP or the deployed server URL.
-  static const base = 'http://10.0.2.2:8000/api';
+  // Set at build time: flutter build web --dart-define=API_BASE=https://your-api.onrender.com/api
+  static const base = String.fromEnvironment('API_BASE', defaultValue: 'http://10.0.2.2:8000/api');
   static String? token;
   static String? role;
 
@@ -39,12 +41,12 @@ class Api {
       headers: {..._auth, 'Content-Type': 'application/json'},
       body: jsonEncode(body)));
 
-  /// Multipart upload: [files] maps field name -> local file path.
-  static Future<dynamic> upload(String path, Map<String, String> fields, Map<String, String> files) async {
+  /// Multipart upload: [files] maps field name -> picked photo (works on mobile and web).
+  static Future<dynamic> upload(String path, Map<String, String> fields, Map<String, XFile> files) async {
     final req = http.MultipartRequest('POST', Uri.parse('$base$path'))..headers.addAll(_auth);
     req.fields.addAll(fields);
     for (final e in files.entries) {
-      req.files.add(await http.MultipartFile.fromPath(e.key, e.value));
+      req.files.add(http.MultipartFile.fromBytes(e.key, await e.value.readAsBytes(), filename: e.value.name));
     }
     return _out(await http.Response.fromStream(await req.send()));
   }

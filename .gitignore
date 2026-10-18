@@ -10,3 +10,4 @@ staticfiles/
 # Flutter
 ev_rent_app/.dart_tool/
 ev_rent_app/build/
+_web_build/
