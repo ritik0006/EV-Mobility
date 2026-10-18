@@ -1,0 +1,12 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
+media/
+staticfiles/
+.env
+.DS_Store
+# Flutter
+ev_rent_app/.dart_tool/
+ev_rent_app/build/

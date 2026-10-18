@@ -1,0 +1,33 @@
+# Render Blueprint: one web service (Django API) + one Postgres database.
+databases:
+  - name: evrent-db
+    plan: free
+    databaseName: evrent
+services:
+  - type: web
+    name: evrent-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: bash build.sh
+    startCommand: gunicorn evrent.wsgi:application
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DEBUG
+        value: "0"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: evrent-db
+          property: connectionString
+      - key: DJANGO_SUPERUSER_USERNAME
+        value: admin
+      - key: DJANGO_SUPERUSER_EMAIL
+        value: admin@example.com
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false        # you type this in the Render dashboard
+      - key: CORS_ORIGINS
+        sync: false        # your web app URL, e.g. https://ev-mobility.vercel.app
