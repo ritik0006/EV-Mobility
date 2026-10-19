@@ -16,7 +16,7 @@ section{padding:64px 0}h2{font-size:clamp(26px,3.4vw,40px);letter-spacing:-1px;m
 .opt{display:flex;gap:12px;align-items:center;padding:14px;border:2px solid #e3ece6;border-radius:14px;margin:8px 0;cursor:pointer}.opt.on{border-color:var(--g);background:#effcf4}.opt.off{opacity:.45;cursor:not-allowed}.opt .e{font-size:30px}.opt .p{margin-left:auto;font-weight:900;font-size:18px}small{display:block;color:var(--m)}
 .pin{font-size:20px;text-align:center;line-height:32px;background:#fff;border-radius:50%;box-shadow:0 4px 14px #0004;border:2px solid var(--g)}.bar{height:8px;background:#e3ece6;border-radius:9px;overflow:hidden;margin:10px 0}.bar i{display:block;height:100%;background:var(--g);transition:width .8s}
 .earn{background:var(--ink);color:#fff;border-radius:28px;padding:44px;display:grid;grid-template-columns:1.2fr .8fr;gap:20px;align-items:center}.earn p,.earn li{color:#b8c9c0}.calc{background:var(--gd);color:#fff;border-radius:28px;padding:40px}.calc input{width:100%;accent-color:var(--g)}.big{font-size:clamp(30px,4vw,48px);font-weight:900;color:var(--g)}
-footer{background:var(--ink);color:#9fb3a9;padding:36px 0;font-size:14px}dialog{border:0;border-radius:20px;padding:22px;width:min(430px,92vw)}dialog::backdrop{background:#0008}dialog input,dialog select{width:100%;font:inherit;padding:11px;border:2px solid #e3ece6;border-radius:10px;margin:5px 0}
+footer{background:var(--ink);color:#9fb3a9;padding:36px 0;font-size:14px}dialog{border:0;border-radius:20px;padding:0;width:min(430px,92vw)}#dlgBody{padding:22px}dialog h3{margin-top:0;padding-right:40px}.x{position:absolute;right:12px;top:12px;border:0;background:#eef5f0;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:16px;z-index:2}.x:hover{background:#d9f7e5}dialog::backdrop{background:#0008}dialog input,dialog select{width:100%;font:inherit;padding:11px;border:2px solid #e3ece6;border-radius:10px;margin:5px 0}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;display:none;z-index:9999;max-width:90vw}
 @media(max-width:860px){.hero .w,.earn,.lv{grid-template-columns:1fr}.art{max-width:300px}nav a.l{display:none}}
 </style></head><body>
@@ -43,7 +43,7 @@ const hv=(a,b,c,d)=>{const r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*
 let token=localStorage.token||null,P=null,D=null,kind="2w",ride=null,timer=null,vs={"2w":[],"4w":[]},mode="ride",pm,dm,line,carM;
 const toast=m=>{const t=$("#toast");t.textContent=String(m).replace("Error: ","");t.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display="none",4500)};
 async function api(p,o={}){const r=await fetch(API+p,{method:o.method||"GET",headers:{"Content-Type":"application/json",...(token?{Authorization:"Token "+token}:{})},body:o.body?JSON.stringify(o.body):undefined});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||Object.values(d)[0]||"Error "+r.status);return d}
-const show=h=>{$("#dlgBody").innerHTML=h;dlg.showModal()},panel=h=>{$("#panel").innerHTML=h};
+const show=h=>{$("#dlgBody").innerHTML='<button class="x" onclick="dlg.close()" aria-label="Close">✕</button>'+h;dlg.showModal()},panel=h=>{$("#panel").innerHTML=h};
 const map=L.map("map").setView([28.57,77.32],11);L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",maxZoom:19}).addTo(map);
 const ic=(e,c)=>L.divIcon({html:e,className:"pin",iconSize:[32,32],iconAnchor:[16,16]}),vl=L.layerGroup().addTo(map);
 
@@ -91,5 +91,6 @@ $("#bPart").onclick=async()=>{if(!token)return openAuth("Sign up as a fleet part
 function setMode(m){mode=m;$("#mRide").classList.toggle("on",m==="ride");$("#mRent").classList.toggle("on",m==="rent");$("#rideF").hidden=m!=="ride";$("#rentF").hidden=m!=="rent";if(m==="rent"&&!ride)rentList()}
 $("#mRide").onclick=()=>setMode("ride");$("#mRent").onclick=()=>setMode("rent");$("#nRent").onclick=()=>setMode("rent");$("#browse").onclick=()=>{rentList();$("#live").scrollIntoView()};
 const calc=()=>{const k=+$("#km").value;$("#kmv").textContent=k;$("#sv").textContent="₹"+Math.round(k*300*1.8).toLocaleString("en-IN");$("#co").textContent=Math.round(k*300*.026)+" kg"};$("#km").oninput=calc;
+dlg.addEventListener("click",e=>{if(e.target===dlg)dlg.close()});
 calc();auth();loadNear();
 </script></body></html>
