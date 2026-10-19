@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import KYC, Booking, PartnerProfile, User, Vehicle
+from .models import KYC, Booking, PartnerProfile, Ride, User, Vehicle
 
 admin.site.site_header = "EV Rent Admin"
 
@@ -57,3 +57,6 @@ class VehicleAdmin(admin.ModelAdmin):
 class BookingAdmin(admin.ModelAdmin):
     list_display = ("id", "renter", "vehicle", "days", "amount", "status", "created_at")
     list_filter = ("status",)
+
+
+admin.site.register(Ride)

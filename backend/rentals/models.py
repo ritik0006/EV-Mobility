@@ -39,7 +39,7 @@ class PartnerProfile(models.Model):
 
 
 class Vehicle(models.Model):
-    TYPES = [("scooter", "Scooter"), ("bike", "Bike")]
+    TYPES = [("scooter", "Scooter"), ("bike", "Bike"), ("car", "Car (4W)")]
     STATUS = [("available", "Available"), ("rented", "Rented"), ("maintenance", "Maintenance")]
     partner = models.ForeignKey(PartnerProfile, on_delete=models.CASCADE, related_name="vehicles")
     name = models.CharField(max_length=80)
@@ -70,4 +70,21 @@ class Booking(models.Model):
     return_photo = models.FileField(upload_to="handover/", null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Ride(models.Model):
+    STATUS = [("assigned", "Assigned"), ("completed", "Completed"), ("cancelled", "Cancelled")]
+    rider = models.ForeignKey(User, on_delete=models.CASCADE, related_name="rides")
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT, related_name="rides")
+    kind = models.CharField(max_length=2, default="2w")  # 2w or 4w
+    start_lat = models.FloatField()  # where the vehicle was when booked
+    start_lng = models.FloatField()
+    pickup_lat = models.FloatField()
+    pickup_lng = models.FloatField()
+    drop_lat = models.FloatField()
+    drop_lng = models.FloatField()
+    distance_km = models.FloatField()
+    fare = models.IntegerField()
+    status = models.CharField(max_length=10, choices=STATUS, default="assigned")
     created_at = models.DateTimeField(auto_now_add=True)

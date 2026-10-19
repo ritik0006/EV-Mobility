@@ -7,6 +7,9 @@ VEHICLES = [  # name, type, reg, price/day, deposit, hub, lat, lng (approximate)
     ("Spark B1 Bike", "bike", "UP16-DEMO-03", 399, 3000, "Sector 18 Metro, Noida", 28.5700, 77.3219),
     ("Spark B2 Bike", "bike", "UP16-DEMO-04", 449, 3500, "Alpha 1, Greater Noida", 28.4700, 77.5100),
     ("Volt S3 Scooter", "scooter", "UP16-DEMO-05", 249, 1500, "Sector 125, Noida", 28.5450, 77.3340),
+    ("Volt C1 Hatchback", "car", "UP16-DEMO-C1", 1299, 6000, "Sector 62, Noida", 28.6280, 77.3660),
+    ("Volt C2 Sedan", "car", "UP16-DEMO-C2", 1499, 8000, "Sector 18 Metro, Noida", 28.5710, 77.3230),
+    ("Spark C3 SUV", "car", "UP16-DEMO-C3", 1999, 10000, "Knowledge Park, Greater Noida", 28.4750, 77.5050),
 ]
 
 
