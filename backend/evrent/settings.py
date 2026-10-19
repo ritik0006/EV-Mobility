@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -41,7 +42,19 @@ TEMPLATES = [{
         "django.contrib.messages.context_processors.messages"]},
 }]
 # Dev uses SQLite. For production switch to PostgreSQL (psycopg) here.
-DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+DATABASES = {"default": dj_database_url.config(default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}", conn_max_age=600)}
+
+
+def clean_origin(value):
+    """'https://site.github.io/EV-Mobility/ ' -> 'https://site.github.io' (browsers send the origin only)."""
+    p = urlparse(value.strip())
+    return f"{p.scheme}://{p.netloc}" if p.scheme and p.netloc else None
+
+
+# Websites allowed to call this API from a browser. The GitHub Pages site is always allowed;
+# CORS_ORIGINS (comma separated) adds more.
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = sorted({clean_origin(o) for o in env_list("CORS_ORIGINS") + ["https://ritik0006.github.io"]} - {None})
 AUTH_USER_MODEL = "rentals.User"
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.TokenAuthentication"],
