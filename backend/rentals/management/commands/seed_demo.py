@@ -27,6 +27,7 @@ class Command(BaseCommand):
         if created:
             renter.set_password("demo1234")
             renter.save()
+        User.objects.filter(username__in=["9000000001", "9000000002"]).update(phone_verified=True)
         KYC.objects.get_or_create(user=renter, defaults={"doc_type": "licence", "document": "kyc/demo.txt", "selfie": "kyc/demo.txt", "status": "approved"})
         for name, vtype, reg, price, dep, hub, lat, lng in VEHICLES:
             Vehicle.objects.get_or_create(reg_number=reg, defaults={

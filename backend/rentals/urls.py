@@ -4,6 +4,12 @@ from . import api
 urlpatterns = [
     path("auth/register/", api.RegisterView.as_view()),
     path("auth/login/", api.LoginView.as_view()),
+    path("auth/google/", api.GoogleLoginView.as_view()),
+    path("auth/me/", api.MeView.as_view()),
+    path("auth/otp/request/", api.OTPRequest.as_view()),
+    path("auth/otp/login/", api.OTPLogin.as_view()),
+    path("auth/otp/send/", api.OTPSend.as_view()),
+    path("auth/otp/verify/", api.OTPVerify.as_view()),
     path("kyc/", api.KYCView.as_view()),
     path("vehicles/", api.VehicleList.as_view()),
     path("vehicles/<int:pk>/location/", api.VehicleLocation.as_view()),

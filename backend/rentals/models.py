@@ -7,6 +7,7 @@ class User(AbstractUser):
     ROLES = [("renter", "Renter"), ("partner", "Fleet partner")]
     phone = models.CharField(max_length=15, unique=True, null=True, blank=True)
     role = models.CharField(max_length=10, choices=ROLES, default="renter")
+    phone_verified = models.BooleanField(default=False)
 
 
 class KYC(models.Model):
@@ -87,4 +88,13 @@ class Ride(models.Model):
     distance_km = models.FloatField()
     fare = models.IntegerField()
     status = models.CharField(max_length=10, choices=STATUS, default="assigned")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class PhoneOTP(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otps", null=True, blank=True)  # empty for phone-login codes
+    phone = models.CharField(max_length=15)
+    code_hash = models.CharField(max_length=64)  # never store the code itself
+    attempts = models.PositiveSmallIntegerField(default=0)
+    used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

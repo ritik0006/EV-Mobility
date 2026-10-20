@@ -10,6 +10,13 @@ def env_list(name):
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-key")
 DEBUG = os.environ.get("DEBUG", "1") == "1"
+# OTP delivery: "demo" shows the code on screen (hackathon demo only); "twilio" sends it with Twilio Verify (SMS or WhatsApp); empty = disabled.
+OTP_PROVIDER = os.environ.get("OTP_PROVIDER") or ("demo" if os.environ.get("OTP_DEMO_MODE") == "1" else "")
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
+TWILIO_VERIFY_SID = os.environ.get("TWILIO_VERIFY_SID", "")
+TWILIO_CHANNEL = os.environ.get("TWILIO_CHANNEL", "sms")  # or "whatsapp"
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")  # from Google Cloud Console (OAuth client, Web)
 ALLOWED_HOSTS = ["*"] if DEBUG else env_list("ALLOWED_HOSTS")
 RENDER_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")  # set automatically by Render
 CSRF_TRUSTED_ORIGINS = []
@@ -59,6 +66,7 @@ AUTH_USER_MODEL = "rentals.User"
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.TokenAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_THROTTLE_RATES": {"otp": "120/hour"},  # per IP, on the public OTP endpoints
 }
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"

@@ -7,8 +7,8 @@ admin.site.site_header = "EV Rent Admin"
 
 @admin.register(User)
 class EvUserAdmin(UserAdmin):
-    fieldsets = UserAdmin.fieldsets + (("EV Rent", {"fields": ("phone", "role")}),)
-    list_display = ("username", "phone", "role", "is_staff")
+    fieldsets = UserAdmin.fieldsets + (("EV Rent", {"fields": ("phone", "phone_verified", "role")}),)
+    list_display = ("username", "phone", "phone_verified", "role", "is_staff")
 
 
 @admin.register(KYC)

@@ -1,4 +1,10 @@
+import hashlib
+import hmac
+import re
+import secrets
+from datetime import timedelta
 from decimal import Decimal
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404
@@ -7,17 +13,19 @@ from rest_framework import generics, permissions, serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from .geo import CO2_KG_PER_KM, DEMO_SPEED_KMH, RATES, ROAD_FACTOR, km, lerp
-from .models import KYC, Booking, PartnerProfile, Ride, User, Vehicle
+from .models import KYC, Booking, PartnerProfile, PhoneOTP, Ride, User, Vehicle
 
 
 # ---------- auth ----------
 class RegisterSerializer(serializers.Serializer):
-    phone = serializers.CharField(max_length=15)
-    password = serializers.CharField(min_length=6, write_only=True)
-    name = serializers.CharField(required=False, allow_blank=True)
+    phone = serializers.RegexField(r"^[6-9]\d{9}$", error_messages={"invalid": "Enter a valid 10-digit mobile number"})
+    password = serializers.CharField(min_length=8, write_only=True, error_messages={"min_length": "Password must be at least 8 characters"})
+    email = serializers.EmailField(required=False, allow_blank=True)
+    name = serializers.CharField(required=False, allow_blank=True, max_length=60)
     role = serializers.ChoiceField(choices=["renter", "partner"], default="renter")
 
     def validate_phone(self, v):
@@ -25,8 +33,13 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("Phone already registered")
         return v
 
+    def validate_email(self, v):
+        if v and User.objects.filter(email__iexact=v).exists():
+            raise serializers.ValidationError("Email already registered")
+        return v.lower()
+
     def create(self, d):
-        return User.objects.create_user(username=d["phone"], phone=d["phone"], password=d["password"],
+        return User.objects.create_user(username=d["phone"], phone=d["phone"], password=d["password"], email=d.get("email", ""),
                                         first_name=d.get("name", ""), role=d["role"])
 
 
@@ -48,9 +61,10 @@ class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, r):
-        u = authenticate(username=r.data.get("phone"), password=r.data.get("password"))
+        ident = str(r.data.get("identifier") or r.data.get("phone") or "").strip()
+        u = authenticate(username=ident.lower() if "@" in ident else ident, password=r.data.get("password"))
         if not u:
-            return Response({"detail": "Invalid phone or password"}, 400)
+            return Response({"detail": "Wrong phone/email or password"}, 400)
         return Response(auth_payload(u))
 
 
@@ -64,7 +78,10 @@ class KYCView(APIView):
 
     def post(self, r):
         if "document" not in r.data or "selfie" not in r.data:
-            return Response({"detail": "document and selfie are required"}, 400)
+            return Response({"detail": "Please upload your licence photo and a selfie"}, 400)
+        for f in (r.data["document"], r.data["selfie"]):
+            if not str(getattr(f, "content_type", "")).startswith("image/") or f.size > 5 * 1024 * 1024:
+                return Response({"detail": "Upload clear photos (JPG or PNG, up to 5 MB each)"}, 400)
         k, _ = KYC.objects.update_or_create(user=r.user, defaults={
             "doc_type": r.data.get("doc_type", "licence"), "document": r.data["document"],
             "selfie": r.data["selfie"], "status": "pending"})
@@ -176,6 +193,9 @@ class PartnerMe(APIView):
         return Response(PartnerSerializer(p).data if p else {"status": "none"})
 
     def post(self, r):  # apply to become a partner; admin approves in the admin panel
+        k = getattr(r.user, "kyc", None)
+        if not k or k.status == "rejected":
+            return Response({"detail": "Complete your KYC first", "code": "KYC_REQUIRED"}, 400)
         if hasattr(r.user, "partner"):
             return Response({"detail": "You have already applied"}, 400)
         s = PartnerSerializer(data=r.data)
@@ -245,6 +265,8 @@ class RideView(APIView):
                 "vehicle": {"id": v.id, "name": v.name, "vtype": v.vtype, "reg_number": v.reg_number, "distance_km": d1}}
         if d.get("estimate") in (True, "true", "1", 1):
             return Response(info)
+        if not r.user.phone_verified:
+            return Response({"detail": "Verify your mobile number to book a ride", "code": "PHONE_NOT_VERIFIED"}, 403)
         ride = Ride.objects.create(rider=r.user, vehicle=v, kind=kind, start_lat=v.lat, start_lng=v.lng, pickup_lat=plat, pickup_lng=plng,
                                    drop_lat=dlat, drop_lng=dlng, distance_km=dist, fare=info["fare"])
         v.status = "rented"
@@ -307,3 +329,158 @@ class VehicleLocation(APIView):
         v.lat, v.lng = _num(r.data, "lat"), _num(r.data, "lng")
         v.save(update_fields=["lat", "lng"])
         return Response({"ok": True})
+
+
+class GoogleLoginView(APIView):
+    """Sign in / sign up with a Google ID token (from Google Identity Services on the website)."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, r):
+        if not settings.GOOGLE_CLIENT_ID:
+            return Response({"detail": "Google sign-in is not set up yet"}, 503)
+        try:
+            from google.auth.transport import requests as grequests
+            from google.oauth2 import id_token
+            info = id_token.verify_oauth2_token(str(r.data.get("credential", "")), grequests.Request(), settings.GOOGLE_CLIENT_ID)
+        except Exception:
+            return Response({"detail": "Google sign-in failed. Please try again."}, 400)
+        if not info.get("email_verified"):
+            return Response({"detail": "Your Google email is not verified"}, 400)
+        email = info["email"].lower()
+        user, created = User.objects.get_or_create(username=email, defaults={"email": email, "first_name": info.get("given_name", ""), "role": "renter"})
+        if created:
+            user.set_unusable_password()
+            user.save()
+        return Response(auth_payload(user))
+
+
+# ---------- mobile number OTP: phone login for everyone, and number verification for Google users ----------
+PHONE_RE = re.compile(r"^[6-9]\d{9}$")
+
+
+def _otp_hash(phone, code):
+    return hashlib.sha256(f"{settings.SECRET_KEY}:{phone}:{code}".encode()).hexdigest()
+
+
+def _twilio(path, data):
+    import requests
+    return requests.post(f"https://verify.twilio.com/v2/Services/{settings.TWILIO_VERIFY_SID}/{path}", data=data,
+                         auth=(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN), timeout=15)
+
+
+def issue_otp(phone, user=None):
+    """Send a code to `phone`. Demo mode returns it in the response; Twilio mode sends an SMS or WhatsApp message."""
+    if not PHONE_RE.match(phone):
+        return Response({"detail": "Enter a valid 10-digit mobile number"}, 400)
+    mode = settings.OTP_PROVIDER
+    if mode not in ("demo", "twilio"):
+        return Response({"detail": "SMS service is not set up yet"}, 503)
+    now = timezone.now()
+    recent = PhoneOTP.objects.filter(phone=phone, created_at__gte=now - timedelta(hours=1)).order_by("-created_at")
+    if recent.count() >= 5:
+        return Response({"detail": "Too many codes requested. Try again in an hour."}, 429)
+    if recent.first() and (now - recent.first().created_at).total_seconds() < 30:
+        return Response({"detail": "Please wait 30 seconds before asking for a new code"}, 429)
+    code = ""
+    if mode == "twilio":
+        try:
+            ok = _twilio("Verifications", {"To": "+91" + phone, "Channel": settings.TWILIO_CHANNEL}).status_code in (200, 201)
+        except Exception:
+            ok = False
+        if not ok:
+            return Response({"detail": "Could not send the code. Please try again."}, 502)
+    else:
+        code = f"{secrets.randbelow(10 ** 6):06d}"
+    PhoneOTP.objects.create(user=user, phone=phone, code_hash=_otp_hash(phone, code) if code else "")
+    return Response({"sent": True, "expires_in": 300, **({"demo_otp": code} if mode == "demo" else {})})
+
+
+def check_otp(phone, code):
+    """Returns (ok, error message). Codes last 5 minutes and allow 5 tries."""
+    code = str(code).strip()
+    if not re.fullmatch(r"\d{6}", code):
+        return False, "Enter the 6-digit code"
+    otp = PhoneOTP.objects.filter(phone=phone, used=False).order_by("-created_at").first()
+    if not otp or (timezone.now() - otp.created_at).total_seconds() > 300:
+        return False, "Code expired. Please request a new one."
+    if otp.attempts >= 5:
+        return False, "Too many wrong attempts. Please request a new code."
+    otp.attempts += 1
+    if settings.OTP_PROVIDER == "twilio":
+        try:
+            ok = _twilio("VerificationCheck", {"To": "+91" + phone, "Code": code}).json().get("status") == "approved"
+        except Exception:
+            return False, "Could not check the code. Please try again."
+    else:
+        ok = hmac.compare_digest(otp.code_hash, _otp_hash(phone, code))
+    if not ok:
+        otp.save(update_fields=["attempts"])
+        return False, "That code is not correct"
+    otp.used = True
+    otp.save(update_fields=["attempts", "used"])
+    return True, ""
+
+
+class OTPRequest(APIView):
+    """Public. Step 1 of phone login (same for new and returning users)."""
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "otp"
+
+    def post(self, r):
+        return issue_otp(str(r.data.get("phone", "")).strip())
+
+
+class OTPLogin(APIView):
+    """Public. Step 2: a correct code logs the user in, creating the account on first use."""
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "otp"
+
+    def post(self, r):
+        phone = str(r.data.get("phone", "")).strip()
+        ok, msg = check_otp(phone, r.data.get("code", ""))
+        if not ok:
+            return Response({"detail": msg}, 400)
+        user = User.objects.filter(phone=phone).first() or User.objects.filter(username=phone).first()
+        if not user:
+            user = User.objects.create_user(username=phone, phone=phone)  # no password: customers sign in with OTP
+        if not user.phone_verified or user.phone != phone:
+            user.phone, user.phone_verified = phone, True
+            user.save(update_fields=["phone", "phone_verified"])
+        return Response({**auth_payload(user), "new": not user.first_name})
+
+
+class MeView(APIView):
+    def get(self, r):
+        u, k = r.user, getattr(r.user, "kyc", None)
+        return Response({"name": u.first_name, "phone": u.phone, "phone_verified": u.phone_verified, "role": u.role, "kyc": k.status if k else "none"})
+
+    def post(self, r):  # set display name
+        r.user.first_name = str(r.data.get("name", "")).strip()[:60]
+        r.user.save(update_fields=["first_name"])
+        return Response({"name": r.user.first_name})
+
+
+class OTPSend(APIView):
+    """Logged-in users (e.g. Google sign-in) who still need a verified number before their first ride."""
+
+    def post(self, r):
+        u = r.user
+        phone = str(u.phone or r.data.get("phone") or "").strip()
+        if User.objects.filter(phone=phone).exclude(pk=u.pk).exists():
+            return Response({"detail": "This number already has an account. Log out and log in with this number instead."}, 400)
+        return issue_otp(phone, u)
+
+
+class OTPVerify(APIView):
+    def post(self, r):
+        u = r.user
+        last = PhoneOTP.objects.filter(user=u).order_by("-created_at").first()
+        phone = str(u.phone or (last.phone if last else "")).strip()
+        ok, msg = check_otp(phone, r.data.get("code", ""))
+        if not ok:
+            return Response({"detail": msg}, 400)
+        u.phone, u.phone_verified = phone, True
+        u.save(update_fields=["phone", "phone_verified"])
+        return Response({"verified": True, "phone": u.phone})
