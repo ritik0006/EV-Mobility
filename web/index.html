@@ -41,7 +41,7 @@ footer{background:var(--ink);color:#9fb3a9;padding:36px 0;font-size:14px}dialog{
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
-const API="https://evrent-api.onrender.com/api",GOOGLE_CLIENT_ID="",   // paste your Google OAuth Client ID here to show "Continue with Google"
+const API="https://evrent-api.onrender.com/api",GOOGLE_CLIENT_ID="743477235332-aj697802pu1hp49ic181m11hshf91mou.apps.googleusercontent.com",   // paste your Google OAuth Client ID here to show "Continue with Google"
 $=s=>document.querySelector(s),dlg=$("#dlg"),RATES={"2w":[20,8],"4w":[50,16]},EM={scooter:"🛵",bike:"🏍️",car:"🚗"};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const hv=(a,b,c,d)=>{const r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 12742*Math.asin(Math.sqrt(x))};
