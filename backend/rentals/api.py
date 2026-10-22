@@ -342,8 +342,9 @@ class GoogleLoginView(APIView):
             from google.auth.transport import requests as grequests
             from google.oauth2 import id_token
             info = id_token.verify_oauth2_token(str(r.data.get("credential", "")), grequests.Request(), settings.GOOGLE_CLIENT_ID)
-        except Exception:
-            return Response({"detail": "Google sign-in failed. Please try again."}, 400)
+        except Exception as e:
+            print("GOOGLE LOGIN ERROR:", repr(e), flush=True)
+            return Response({"detail": "Google sign-in failed. Please try again."}, status=400)
         if not info.get("email_verified"):
             return Response({"detail": "Your Google email is not verified"}, 400)
         email = info["email"].lower()
