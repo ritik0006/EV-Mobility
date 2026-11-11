@@ -1,6 +1,5 @@
 from decimal import Decimal
 
-from django.urls import reverse
 from rest_framework.test import APITestCase
 
 from .models import Booking, KYC, PartnerProfile, User, Vehicle
@@ -47,7 +46,7 @@ class RentalBookingWorkflowTests(APITestCase):
     def test_renter_can_create_booking_and_vehicle_becomes_unavailable(self):
         self.client.force_authenticate(self.renter)
         response = self.client.post(
-            reverse("booking-list") if False else "/api/bookings/",
+            "/api/bookings/",
             {"vehicle": self.vehicle.pk, "days": 2},
             format="json",
         )
