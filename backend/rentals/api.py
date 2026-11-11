@@ -167,16 +167,6 @@ class BookingListCreate(generics.ListCreateAPIView):
             vehicle.save(update_fields=["status"])
 
 
-class PartnerBookings(generics.ListAPIView):
-    permission_classes = [IsApprovedPartner]
-    serializer_class = BookingSerializer
-
-    def get_queryset(self):
-        return Booking.objects.filter(
-            vehicle__partner=self.request.user.partner
-        ).select_related("vehicle", "renter").order_by("-created_at")
-
-
 class BookingAction(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
@@ -225,6 +215,16 @@ class IsApprovedPartner(permissions.BasePermission):
     def has_permission(self, request, view):
         p = getattr(request.user, "partner", None)
         return bool(p and p.status == "approved")
+
+
+class PartnerBookings(generics.ListAPIView):
+    permission_classes = [IsApprovedPartner]
+    serializer_class = BookingSerializer
+
+    def get_queryset(self):
+        return Booking.objects.filter(
+            vehicle__partner=self.request.user.partner
+        ).select_related("vehicle", "renter").order_by("-created_at")
 
 
 class PartnerSerializer(serializers.ModelSerializer):
