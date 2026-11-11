@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>EV Mobility: ride, rent and earn electric</title>
+    <meta name="theme-color" content="#0b0f0d" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <nav>
+      <div class="w">
+        <a class="logo" href="#top"><i>⚡</i>EV Mobility</a
+        ><a class="l" href="#top">Ride</a
+        ><a class="l" href="#live" id="nRent">Rent</a
+        ><a class="l" href="#earn">Earn</a><a class="l" href="#why">Why EV</a
+        ><span class="sp"></span
+        ><button class="btn s o" id="bAuth">Log in / Sign up</button>
+      </div>
+    </nav>
+    <header class="hero" id="top">
+      <div class="w">
+        <div>
+          <h1>Go electric.<br />Ride in <em>minutes</em>.</h1>
+          <p class="sub">
+            Electric bikes, scooters and cabs in Noida and Greater Noida.
+            Cheaper than petrol, cleaner for everyone. Every vehicle on our
+            platform is electric.
+          </p>
+          <div class="card">
+            <div class="tabs">
+              <button id="mRide" class="on">🛵 Ride</button
+              ><button id="mRent">🔑 Rent</button>
+            </div>
+            <div id="rideF">
+              <div class="f">
+                <b>🟢</b
+                ><input
+                  id="pu"
+                  placeholder="Pickup location"
+                  autocomplete="off"
+                /><button class="loc" id="loc" title="Use my location">
+                  📍
+                </button>
+                <div class="sg" id="sgp" hidden></div>
+              </div>
+              <div class="f">
+                <b>🔴</b
+                ><input id="dr" placeholder="Where to?" autocomplete="off" />
+                <div class="sg" id="sgd" hidden></div>
+              </div>
+              <div class="chips">
+                Try:
+                <button class="chip" data-r="0">Sector 18 → Sector 62</button
+                ><button class="chip" data-r="1">
+                  Knowledge Park → Alpha 1
+                </button>
+              </div>
+              <button class="btn" id="see" style="width: 100%">
+                See EV prices
+              </button>
+            </div>
+            <div id="rentF" hidden>
+              <p style="margin: 6px 0 14px">
+                Rent an EV by the day. Nearest vehicles first, deposit
+                refundable.
+              </p>
+              <button class="btn" id="browse" style="width: 100%">
+                Browse EVs near me
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="art">
+          <div class="blob"></div>
+          <svg viewBox="0 0 320 200">
+            <circle cx="70" cy="150" r="34" fill="#0b0f0d" />
+            <circle cx="250" cy="150" r="34" fill="#0b0f0d" />
+            <circle cx="70" cy="150" r="14" fill="#1fd36a" />
+            <circle cx="250" cy="150" r="14" fill="#1fd36a" />
+            <path
+              d="M70 150H125L150 92H214L250 150M214 92L204 48H240"
+              stroke="#0b0f0d"
+              stroke-width="12"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <rect
+              x="104"
+              y="104"
+              width="92"
+              height="34"
+              rx="15"
+              fill="#fff"
+              stroke="#0b0f0d"
+              stroke-width="6"
+            />
+            <path d="M158 108l-14 20h12l-4 14 16-22h-12z" fill="#1fd36a" />
+          </svg>
+          <span class="tag" style="left: 0; top: 10%"
+            >⚡ 0 tailpipe emissions</span
+          ><span class="tag" style="right: 0; bottom: 12%"
+            >₹0.3 / km energy</span
+          >
+        </div>
+      </div>
+    </header>
+    <section>
+      <div class="w">
+        <h2>Pick your EV</h2>
+        <p class="lead">Fares start low and stay clear. Pay after the ride.</p>
+        <div class="grid">
+          <div class="tile">
+            <div class="e">🏍️</div>
+            <h3>EV Bike</h3>
+            <p>Beat the traffic. From ₹20 + ₹8/km.</p>
+          </div>
+          <div class="tile">
+            <div class="e">🛵</div>
+            <h3>EV Scooter</h3>
+            <p>Easy daily rides and rentals from ₹249/day.</p>
+          </div>
+          <div class="tile">
+            <div class="e">🚗</div>
+            <h3>EV Cab</h3>
+            <p>Up to 4 riders. From ₹50 + ₹16/km.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="live" style="background: var(--bg)">
+      <div class="w">
+        <h2>EVs near you, live</h2>
+        <p class="lead">
+          Every pin is an electric vehicle. Search a route above or browse what
+          is closest.
+        </p>
+        <div class="lv">
+          <div class="card" id="panel"></div>
+          <div id="map"></div>
+        </div>
+      </div>
+    </section>
+    <section id="why">
+      <div class="w">
+        <h2>Why EV Mobility</h2>
+        <p class="lead">
+          Estimates versus a petrol scooter on today's Indian grid.
+        </p>
+        <div class="grid">
+          <div class="tile">
+            <div class="e">💸</div>
+            <h3>~85% cheaper to run</h3>
+            <p>About ₹0.3 per km of energy against ₹2.1 for petrol.</p>
+          </div>
+          <div class="tile">
+            <div class="e">🌱</div>
+            <h3>~50% less CO₂</h3>
+            <p>
+              25 g/km against 51 g/km, and about 90% less with solar charging.
+            </p>
+          </div>
+          <div class="tile">
+            <div class="e">🛡️</div>
+            <h3>Verified and tracked</h3>
+            <p>KYC-checked riders, vetted fleet partners, live GPS.</p>
+          </div>
+          <div class="tile">
+            <div class="e">📍</div>
+            <h3>Close to campus and office</h3>
+            <p>Hubs near colleges and metro stations in Noida.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="earn" style="padding-top: 0">
+      <div class="w">
+        <div class="earn">
+          <div>
+            <h2>Own EVs? Earn with us.</h2>
+            <p>
+              List your bikes, scooters or cars and earn a share of every rental
+              and ride.
+            </p>
+            <ul>
+              <li>Apply in two minutes</li>
+              <li>We verify and approve you</li>
+              <li>Track vehicles and earnings live</li>
+            </ul>
+            <button class="btn g" id="bPart">Become a partner</button>
+          </div>
+          <div style="font-size: 120px; text-align: center">🔋</div>
+        </div>
+      </div>
+    </section>
+    <section id="calc" style="padding-top: 0">
+      <div class="w">
+        <div class="calc">
+          <h2>What could you save?</h2>
+          <p style="color: #b8c9c0">
+            Move your daily commute from a petrol scooter to an EV.
+          </p>
+          <b id="kmv">30</b> km a day<input
+            id="km"
+            type="range"
+            min="5"
+            max="80"
+            value="30"
+          />
+          <div class="grid" style="margin-top: 16px">
+            <div>
+              <div class="big" id="sv"></div>
+              saved on fuel every year
+            </div>
+            <div>
+              <div class="big" id="co"></div>
+              less CO₂ every year
+            </div>
+          </div>
+          <p style="color: #b8c9c0; font-size: 13px">
+            Assumes 300 riding days, petrol ₹95/L at 45 km/L, EV energy ₹8/kWh
+            at 35 Wh/km, 0.71 kg CO₂/kWh.
+          </p>
+        </div>
+      </div>
+    </section>
+    <footer>
+      <div class="w">
+        ⚡ EV Mobility · Noida and Greater Noida · Map data © OpenStreetMap
+        contributors © CARTO
+      </div>
+    </footer>
+    <dialog id="dlg"><div id="dlgBody"></div></dialog>
+    <div id="toast"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="app.js"></script>
+  </body>
+</html>
