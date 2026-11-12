@@ -147,3 +147,36 @@ class RentalBookingWorkflowTests(APITestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Booking.objects.count(), 0)
+    def test_public_inventory_excludes_four_wheelers(self):
+        car = Vehicle.objects.create(
+            partner=self.partner,
+            name="Test Electric Car",
+            vtype="car",
+            reg_number="UP16CAR001",
+            daily_price=Decimal("1500.00"),
+            deposit=Decimal("5000.00"),
+            status="available",
+            approved=True,
+        )
+        self.client.force_authenticate(user=None)
+        response = self.client.get("/api/vehicles/?kind=2w")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(car.pk, [row["id"] for row in response.data])
+        self.assertTrue(all(row["vtype"] in ("scooter", "bike") for row in response.data))
+
+    def test_partner_cannot_add_four_wheeler_during_two_wheeler_launch(self):
+        self.client.force_authenticate(self.partner_user)
+        response = self.client.post(
+            "/api/partner/vehicles/",
+            {
+                "name": "Unlisted Electric Car",
+                "vtype": "car",
+                "reg_number": "UP16CAR002",
+                "daily_price": "1500.00",
+                "deposit": "5000.00",
+                "hub": "Noida",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
