@@ -97,6 +97,11 @@ class VehicleSerializer(serializers.ModelSerializer):
                   "status", "approved"]
         read_only_fields = ["status", "approved"]
 
+    def validate_vtype(self, value):
+        if value not in ("scooter", "bike"):
+            raise serializers.ValidationError("EV Mobility currently accepts electric scooters and bikes only.")
+        return value
+
 
 def available(kind=None):
     """Launch inventory: only approved electric scooters and bikes."""
@@ -136,11 +141,6 @@ class BookingSerializer(serializers.ModelSerializer):
     def validate_days(self, value):
         if value < 1 or value > 30:
             raise serializers.ValidationError("Choose between 1 and 30 rental days.")
-        return value
-
-    def validate_vtype(self, value):
-        if value not in ("scooter", "bike"):
-            raise serializers.ValidationError("EV Mobility currently accepts electric scooters and bikes only.")
         return value
 
 
