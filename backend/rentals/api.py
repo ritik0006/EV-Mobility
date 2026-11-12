@@ -99,10 +99,13 @@ class VehicleSerializer(serializers.ModelSerializer):
 
 
 def available(kind=None):
-    qs = Vehicle.objects.filter(approved=True, status="available", partner__status="approved")
-    if kind == "4w":
-        return qs.filter(vtype="car")
-    return qs.exclude(vtype="car") if kind == "2w" else qs
+    """Launch inventory: only approved electric scooters and bikes."""
+    return Vehicle.objects.filter(
+        approved=True,
+        status="available",
+        partner__status="approved",
+        vtype__in=["scooter", "bike"],
+    )
 
 
 class VehicleList(APIView):
