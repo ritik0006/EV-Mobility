@@ -17,6 +17,7 @@ urlpatterns = [
     path("rides/<int:pk>/track/", api.RideTrack.as_view()),
     path("rides/<int:pk>/cancel/", api.RideCancel.as_view()),
     path("bookings/", api.BookingListCreate.as_view()),
+    path("partner/bookings/", api.PartnerBookings.as_view()),
     path("bookings/<int:pk>/<slug:action>/", api.BookingAction.as_view()),
     path("partner/me/", api.PartnerMe.as_view()),
     path("partner/vehicles/", api.PartnerVehicles.as_view()),

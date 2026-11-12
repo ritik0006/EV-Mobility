@@ -6,6 +6,7 @@ from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -96,12 +97,20 @@ class VehicleSerializer(serializers.ModelSerializer):
                   "status", "approved"]
         read_only_fields = ["status", "approved"]
 
+    def validate_vtype(self, value):
+        if value not in ("scooter", "bike"):
+            raise serializers.ValidationError("EV Mobility currently accepts electric scooters and bikes only.")
+        return value
+
 
 def available(kind=None):
-    qs = Vehicle.objects.filter(approved=True, status="available", partner__status="approved")
-    if kind == "4w":
-        return qs.filter(vtype="car")
-    return qs.exclude(vtype="car") if kind == "2w" else qs
+    """Launch inventory: only approved electric scooters and bikes."""
+    return Vehicle.objects.filter(
+        approved=True,
+        status="available",
+        partner__status="approved",
+        vtype__in=["scooter", "bike"],
+    )
 
 
 class VehicleList(APIView):
@@ -129,47 +138,87 @@ class BookingSerializer(serializers.ModelSerializer):
         fields = ["id", "vehicle", "vehicle_name", "days", "amount", "deposit", "status", "started_at", "ended_at"]
         read_only_fields = ["amount", "deposit", "status", "started_at", "ended_at"]
 
+    def validate_days(self, value):
+        if value < 1 or value > 30:
+            raise serializers.ValidationError("Choose between 1 and 30 rental days.")
+        return value
+
 
 class BookingListCreate(generics.ListCreateAPIView):
     serializer_class = BookingSerializer
 
     def get_queryset(self):
-        return Booking.objects.filter(renter=self.request.user).order_by("-created_at")
+        return Booking.objects.filter(renter=self.request.user).select_related("vehicle").order_by("-created_at")
 
     def perform_create(self, s):
-        u = self.request.user
-        if getattr(getattr(u, "kyc", None), "status", None) != "approved":
+        user = self.request.user
+        if getattr(getattr(user, "kyc", None), "status", None) != "approved":
             raise serializers.ValidationError("KYC not approved yet")
-        v = s.validated_data["vehicle"]
-        if v.status != "available" or not v.approved:
-            raise serializers.ValidationError("Vehicle not available")
-        # TODO: take payment (Razorpay) before confirming; lock the row to avoid double booking
-        s.save(renter=u, amount=v.daily_price * s.validated_data["days"], deposit=v.deposit)
-        v.status = "rented"
-        v.save(update_fields=["status"])
+
+        vehicle_id = s.validated_data["vehicle"].pk
+        days = s.validated_data["days"]
+
+        # Lock the vehicle row so concurrent requests cannot reserve it twice.
+        with transaction.atomic():
+            vehicle = Vehicle.objects.select_for_update().select_related("partner").get(pk=vehicle_id)
+            if vehicle.status != "available" or not vehicle.approved or vehicle.partner.status != "approved":
+                raise serializers.ValidationError("Vehicle is not available for booking.")
+
+            booking = Booking.objects.create(
+                renter=user,
+                vehicle=vehicle,
+                days=days,
+                amount=vehicle.daily_price * days,
+                deposit=vehicle.deposit,
+            )
+            # Attach the persisted object so DRF serializes the created booking,
+            # rather than trying to serialize the unsaved input serializer.
+            s.instance = booking
+            vehicle.status = "rented"
+            vehicle.save(update_fields=["status"])
 
 
 class BookingAction(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, r, pk, action):
-        b = get_object_or_404(Booking, pk=pk, renter=r.user)
-        if action == "pickup":
-            if b.status != "booked":
-                return Response({"detail": "Booking is not waiting for pickup"}, 400)
-            if str(b.vehicle.qr_token) != r.data.get("qr_token"):
-                return Response({"detail": "QR code does not match this vehicle"}, 400)
-            b.pickup_photo, b.status, b.started_at = r.data.get("photo"), "active", timezone.now()
-        elif action == "return":
-            if b.status != "active":
-                return Response({"detail": "Booking is not active"}, 400)
-            b.return_photo, b.status, b.ended_at = r.data.get("photo"), "completed", timezone.now()
-            b.vehicle.status = "available"
-            b.vehicle.save(update_fields=["status"])
-        else:
-            return Response(status=404)
-        b.save()
-        return Response(BookingSerializer(b).data)
+        with transaction.atomic():
+            booking = get_object_or_404(
+                Booking.objects.select_for_update().select_related("vehicle"),
+                pk=pk,
+                renter=r.user,
+            )
+            vehicle = Vehicle.objects.select_for_update().get(pk=booking.vehicle_id)
+
+            if action == "cancel":
+                if booking.status != "booked":
+                    return Response({"detail": "Only bookings awaiting pickup can be cancelled."}, 400)
+                booking.status = "cancelled"
+                booking.save(update_fields=["status"])
+                vehicle.status = "available"
+                vehicle.save(update_fields=["status"])
+            elif action == "pickup":
+                if booking.status != "booked":
+                    return Response({"detail": "Booking is not waiting for pickup"}, 400)
+                if str(vehicle.qr_token) != r.data.get("qr_token"):
+                    return Response({"detail": "QR code does not match this vehicle"}, 400)
+                booking.pickup_photo = r.data.get("photo")
+                booking.status = "active"
+                booking.started_at = timezone.now()
+                booking.save()
+            elif action == "return":
+                if booking.status != "active":
+                    return Response({"detail": "Booking is not active"}, 400)
+                booking.return_photo = r.data.get("photo")
+                booking.status = "completed"
+                booking.ended_at = timezone.now()
+                booking.save()
+                vehicle.status = "available"
+                vehicle.save(update_fields=["status"])
+            else:
+                return Response(status=404)
+
+        return Response(BookingSerializer(booking).data)
 
 
 # ---------- fleet partner onboarding ----------
@@ -177,6 +226,16 @@ class IsApprovedPartner(permissions.BasePermission):
     def has_permission(self, request, view):
         p = getattr(request.user, "partner", None)
         return bool(p and p.status == "approved")
+
+
+class PartnerBookings(generics.ListAPIView):
+    permission_classes = [IsApprovedPartner]
+    serializer_class = BookingSerializer
+
+    def get_queryset(self):
+        return Booking.objects.filter(
+            vehicle__partner=self.request.user.partner
+        ).select_related("vehicle", "renter").order_by("-created_at")
 
 
 class PartnerSerializer(serializers.ModelSerializer):
@@ -248,8 +307,8 @@ class RideView(APIView):
     def post(self, r):
         d = r.data
         kind = d.get("kind", "2w")
-        if kind not in RATES:
-            return Response({"detail": "kind must be 2w or 4w"}, 400)
+        if kind != "2w":
+            return Response({"detail": "EV Mobility currently supports two-wheeler rides only."}, 400)
         plat, plng, dlat, dlng = (_num(d, k) for k in ("pickup_lat", "pickup_lng", "drop_lat", "drop_lng"))
         dist = round(km(plat, plng, dlat, dlng) * ROAD_FACTOR, 1)
         if dist < 0.2:
