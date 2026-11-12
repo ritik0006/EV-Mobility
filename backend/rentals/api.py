@@ -138,6 +138,11 @@ class BookingSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Choose between 1 and 30 rental days.")
         return value
 
+    def validate_vtype(self, value):
+        if value not in ("scooter", "bike"):
+            raise serializers.ValidationError("EV Mobility currently accepts electric scooters and bikes only.")
+        return value
+
 
 class BookingListCreate(generics.ListCreateAPIView):
     serializer_class = BookingSerializer
@@ -302,8 +307,8 @@ class RideView(APIView):
     def post(self, r):
         d = r.data
         kind = d.get("kind", "2w")
-        if kind not in RATES:
-            return Response({"detail": "kind must be 2w or 4w"}, 400)
+        if kind != "2w":
+            return Response({"detail": "EV Mobility currently supports two-wheeler rides only."}, 400)
         plat, plng, dlat, dlng = (_num(d, k) for k in ("pickup_lat", "pickup_lng", "drop_lat", "drop_lng"))
         dist = round(km(plat, plng, dlat, dlng) * ROAD_FACTOR, 1)
         if dist < 0.2:
