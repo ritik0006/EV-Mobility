@@ -101,14 +101,14 @@ async function loadNear() {
       CFG = await api("/config/");
       calc();
     }
-    for (const k of ["2w", "4w"])
-      vs[k] = await api(`/vehicles/?kind=${k}&lat=${c.lat}&lng=${c.lng}`);
+    vs["2w"] = await api(`/vehicles/?kind=2w&lat=${c.lat}&lng=${c.lng}`);
+    vs["4w"] = [];
   } catch (e) {
     toast("Server is waking up (free hosting). Retrying…");
     return setTimeout(loadNear, 6000);
   }
   vl.clearLayers();
-  [...vs["2w"], ...vs["4w"]].forEach(
+  vs["2w"].forEach(
     (v) =>
       v.lat != null &&
       L.marker([v.lat, v.lng], { icon: ic(EM[v.vtype] || "🛵") })
@@ -120,7 +120,7 @@ async function loadNear() {
   if (!ride && !(P && D && mode === "ride")) rentList();
 }
 function rentList() {
-  const all = [...vs["2w"], ...vs["4w"]].sort(
+  const all = [...vs["2w"]].sort(
     (a, b) => (a.distance_km ?? 99) - (b.distance_km ?? 99),
   );
   panel(
@@ -244,30 +244,15 @@ $("#see").onclick = async () => {
 
 function options() {
   if (!(P && D && CFG)) return;
-  const dist = hv(P.lat, P.lng, D.lat, D.lng) * CFG.road_factor,
-    N = {
-      "2w": ["EV Bike / Scooter", "🛵", "1 rider"],
-      "4w": ["EV Cab", "🚗", "up to 4 riders"],
-    };
-  if (!vs[kind][0]) kind = kind === "2w" ? "4w" : "2w";
+  const dist = hv(P.lat, P.lng, D.lat, D.lng) * CFG.road_factor;
+  kind = "2w";
+  const vehicle = vs["2w"][0];
   panel(
-    `<h3 style="margin:0">Choose your EV</h3><small>${dist.toFixed(1)} km · estimated fares</small>` +
-      ["2w", "4w"]
-        .map((k) => {
-          const n = vs[k][0];
-          return n
-            ? `<div class="opt ${k === kind ? "on" : ""}" data-k="${k}"><span class="e">${N[k][1]}</span><div><b>${N[k][0]}</b><small>${N[k][2]} · ${Math.max(2, Math.round(((n.distance_km * CFG.road_factor) / 30) * 60))} min away</small></div><span class="p">₹${Math.round(CFG.rates[k].base + CFG.rates[k].per_km * dist)}</span></div>`
-            : `<div class="opt off"><span class="e">${N[k][1]}</span><div><b>${N[k][0]}</b><small>No EV nearby right now</small></div></div>`;
-        })
-        .join("") +
-      `<button class="btn" id="bk" style="width:100%">Book ${N[kind][0]}</button><p><small>Pay after the ride · 100% electric ⚡</small></p>`,
-  );
-  document.querySelectorAll(".opt[data-k]").forEach(
-    (o) =>
-      (o.onclick = () => {
-        kind = o.dataset.k;
-        options();
-      }),
+    `<h3 style="margin:0">Choose your electric two-wheeler</h3><small>${dist.toFixed(1)} km · estimated fare</small>` +
+      (vehicle
+        ? `<div class="opt on"><span class="e">🏍️</span><div><b>EV Bike / Scooter</b><small>One rider · ${Math.max(2, Math.round(((vehicle.distance_km * CFG.road_factor) / 30) * 60))} min away</small></div><span class="p">₹${Math.round(CFG.rates["2w"].base + CFG.rates["2w"].per_km * dist)}</span></div>`
+        : `<div class="opt off"><span class="e">🛵</span><div><b>EV Bike / Scooter</b><small>No two-wheeler available nearby right now</small></div></div>`) +
+      `<button class="btn" id="bk" style="width:100%" ${vehicle ? "" : "disabled"}>Book EV two-wheeler</button><p><small>Electric two-wheeler rides · instant booking</small></p>`,
   );
   $("#bk").onclick = book;
 }
@@ -353,7 +338,7 @@ function resetRide() {
 }
 
 async function openRent(id) {
-  const v = [...vs["2w"], ...vs["4w"]].find((x) => x.id === id);
+  const v = vs["2w"].find((x) => x.id === id);
   if (!v) return;
   if (!token) return openAuth("Log in to rent");
   let ks;
