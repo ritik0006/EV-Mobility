@@ -156,13 +156,16 @@ class BookingListCreate(generics.ListCreateAPIView):
             if vehicle.status != "available" or not vehicle.approved or vehicle.partner.status != "approved":
                 raise serializers.ValidationError("Vehicle is not available for booking.")
 
-            Booking.objects.create(
+            booking = Booking.objects.create(
                 renter=user,
                 vehicle=vehicle,
                 days=days,
                 amount=vehicle.daily_price * days,
                 deposit=vehicle.deposit,
             )
+            # Attach the persisted object so DRF serializes the created booking,
+            # rather than trying to serialize the unsaved input serializer.
+            s.instance = booking
             vehicle.status = "rented"
             vehicle.save(update_fields=["status"])
 
