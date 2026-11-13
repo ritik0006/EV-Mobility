@@ -32,6 +32,9 @@ function App() {
   const [selectedVehicle, setSelectedVehicle] = useState<number | null>(null);
   const [rentalDays, setRentalDays] = useState(1);
   const [toast, setToast] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const greeting = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening";
+  const todayLabel = new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
   const filteredStations = useMemo(() => stations.filter(s => (s.name + s.area).toLowerCase().includes(query.toLowerCase())), [query]);
 
   const notify = (message: string) => {
@@ -39,6 +42,7 @@ function App() {
     window.setTimeout(() => setToast(""), 2800);
   };
   const chooseService = (s: Service) => {
+    setMobileMenuOpen(false);
     setService(s);
     setActiveNav(s === "ride" ? "Ride & Earn" : s === "rent" ? "Rent an EV" : "Charging stations");
     setSelectedVehicle(null);
@@ -53,12 +57,12 @@ function App() {
   };
 
   return <div className="app-shell">
-    <aside className="sidebar">
-      <div className="sidebar-top"><Logo /><button className="icon-btn mobile-menu" aria-label="Open menu"><Menu size={19}/></button></div>
+    <aside className={mobileMenuOpen ? "sidebar mobile-open" : "sidebar"}>
+      <div className="sidebar-top"><Logo /><button className="icon-btn mobile-menu" aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>{mobileMenuOpen ? <X size={19}/> : <Menu size={19}/>}</button></div>
       <div className="workspace-label">WORKSPACE</div>
       <nav className="side-nav" aria-label="Main navigation">
         {[{label:"Overview",icon:Gauge},{label:"Ride & Earn",icon:Bike},{label:"Rent an EV",icon:Zap},{label:"Charging stations",icon:MapPin}].map(item => {
-          const Icon=item.icon; return <button key={item.label} className={activeNav===item.label?"nav-item active":"nav-item"} onClick={()=>{setActiveNav(item.label); if(item.label==="Ride & Earn")chooseService("ride");if(item.label==="Rent an EV")chooseService("rent");if(item.label==="Charging stations")chooseService("charge");}}>
+          const Icon=item.icon; return <button key={item.label} className={activeNav===item.label?"nav-item active":"nav-item"} onClick={()=>{setActiveNav(item.label); if(item.label==="Ride & Earn")chooseService("ride");if(item.label==="Rent an EV")chooseService("rent");if(item.label==="Charging stations")chooseService("charge");if(item.label==="Overview"){setService("ride");setMobileMenuOpen(false);}}}>
             <Icon size={18}/><span>{item.label}</span>{item.label==="Charging stations"&&<span className="nav-new">NEW</span>}
           </button>;
         })}
@@ -90,8 +94,8 @@ function App() {
 
       <div className="content">
         <section className="welcome-row">
-          <div><div className="eyebrow"><Sparkles size={14}/> YOUR ELECTRIC JOURNEY STARTS HERE</div><h1>Good morning, Ritik <span className="wave">✳</span></h1><p className="welcome-sub">Where would you like to go today?</p></div>
-          <div className="date-chip"><CalendarDays size={16}/> Thursday, 12 November</div>
+          <div><div className="eyebrow"><Sparkles size={14}/> YOUR ELECTRIC JOURNEY STARTS HERE</div><h1>{greeting}, Ritik <span className="wave">✳</span></h1><p className="welcome-sub">Where would you like to go today?</p></div>
+          <div className="date-chip"><CalendarDays size={16}/> {todayLabel}</div>
         </section>
 
         <section className="hero-card">
@@ -122,7 +126,7 @@ function App() {
             <button className={service==="rent"?"service-card service-rent selected":"service-card service-rent"} onClick={()=>chooseService("rent")}>
               <div className="service-top"><span className="service-icon"><Zap size={21}/></span><span className="service-arrow"><ArrowUpRight size={18}/></span></div>
               <div className="service-art rent-art"><div className="art-circle"/><img src="https://images.unsplash.com/photo-1591637333184-19aa84b3e01f?w=700&q=85" alt="Electric scooter available for rent"/></div>
-              <div className="service-text"><span className="service-label">FLEXIBLE EV ACCESS</span><h3>Rent an EV</h3><p>Choose a partner-listed electric vehicle and use it to earn.</p><span className="text-link">Browse vehicles <ArrowRight size={15}/></span></div>
+              <div className="service-text"><span className="service-label">FLEXIBLE EV ACCESS</span><h3>Rent an EV</h3><p>Choose a partner-listed electric vehicle for a day, a week or longer—on your schedule.</p><span className="text-link">Browse vehicles <ArrowRight size={15}/></span></div>
             </button>
             <button className={service==="charge"?"service-card service-charge selected":"service-card service-charge"} onClick={()=>chooseService("charge")}>
               <div className="service-top"><span className="service-icon"><MapPin size={21}/></span><span className="service-arrow"><ArrowUpRight size={18}/></span></div>
@@ -144,7 +148,7 @@ function App() {
         </section>}
 
         {service==="rent"&&<section className="work-panel">
-          <div className="panel-heading"><div><span className="service-label">RENT AN EV & EARN</span><h2>Find your ride to opportunity.</h2><p>Explore electric two-wheelers listed by our fleet partners.</p></div><span className="panel-badge"><ShieldCheck size={15}/> Partner supplied</span></div>
+          <div className="panel-heading"><div><span className="service-label">FLEXIBLE EV RENTALS</span><h2>Find your ride to opportunity.</h2><p>Explore electric two-wheelers listed by our fleet partners.</p></div><span className="panel-badge"><ShieldCheck size={15}/> Partner supplied</span></div>
           {selectedVehicle===null?<div className="vehicle-grid">{vehicles.map(v=><article className="vehicle-card" key={v.id}><div className="vehicle-photo"><img src={v.image} alt={v.name}/><span>{v.tag}</span></div><div className="vehicle-info"><small>{v.kind}</small><h3>{v.name}</h3><div className="vehicle-meta"><span><Zap size={14}/>{v.range}</span><strong>{v.rate}<small>/ day</small></strong></div><button className="outline-btn" onClick={()=>setSelectedVehicle(v.id)}>View details <ArrowRight size={15}/></button></div></article>)}</div>:<div className="rental-detail"><button className="back-link" onClick={()=>setSelectedVehicle(null)}>← Back to vehicles</button><h3>{vehicles.find(v=>v.id===selectedVehicle)?.name}</h3><p>Choose how long you need the vehicle. This is a frontend preview; partner availability and booking will be connected later.</p><label className="days-label">Rental duration <select value={rentalDays} onChange={e=>setRentalDays(Number(e.target.value))}>{[1,2,3,7,14,30].map(d=><option value={d} key={d}>{d} {d===1?"day":"days"}</option>)}</select></label><div className="rental-total"><span>Estimated rental total</span><strong>{(Number(vehicles.find(v=>v.id===selectedVehicle)?.rate.replace("₹",""))*rentalDays).toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0})}</strong></div><button className="primary-btn" onClick={()=>notify("Rental selection saved in this demo. Real booking will be enabled after API integration.")}>Continue to booking <ArrowRight size={17}/></button></div>}
           <div className="panel-foot"><span><ShieldCheck size={15}/> Verified partner listings</span><span><CalendarDays size={15}/> Flexible rental durations</span></div>
         </section>}
