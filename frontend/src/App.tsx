@@ -6,7 +6,7 @@ import {
   Sparkles, Wallet, X, Zap
 } from "lucide-react";
 
-type Service = "ride" | "rent" | "charge";
+type Service = "overview" | "ride" | "rent" | "charge";
 const stations = [
   { id: 1, name: "ChargeZone – Sector 18", area: "Sector 18, Noida", distance: "1.2 km", type: "Public charging point" },
   { id: 2, name: "Tata Power EZ Charge", area: "Sector 16, Noida", distance: "2.8 km", type: "Public charging point" },
@@ -22,7 +22,7 @@ function Logo() {
   return <div className="brand"><span className="brand-mark"><Zap size={19} fill="currentColor" /></span><span>ev<span className="brand-light">mobility</span></span></div>;
 }
 function App() {
-  const [service, setService] = useState<Service>("ride");
+  const [service, setService] = useState<Service>("overview");
   const [location, setLocation] = useState("Sector 18, Noida");
   const [destination, setDestination] = useState("");
   const [query, setQuery] = useState("");
@@ -44,7 +44,7 @@ function App() {
   const chooseService = (s: Service) => {
     setMobileMenuOpen(false);
     setService(s);
-    setActiveNav(s === "ride" ? "Ride & Earn" : s === "rent" ? "Rent an EV" : "Charging stations");
+    setActiveNav(s === "overview" ? "Overview" : s === "ride" ? "Ride & Earn" : s === "rent" ? "Rent an EV" : "Charging stations");
     setSelectedVehicle(null);
   };
   const handleLocation = () => {
@@ -62,7 +62,7 @@ function App() {
       <div className="workspace-label">WORKSPACE</div>
       <nav className="side-nav" aria-label="Main navigation">
         {[{label:"Overview",icon:Gauge},{label:"Ride & Earn",icon:Bike},{label:"Rent an EV",icon:Zap},{label:"Charging stations",icon:MapPin}].map(item => {
-          const Icon=item.icon; return <button key={item.label} className={activeNav===item.label?"nav-item active":"nav-item"} onClick={()=>{setActiveNav(item.label); if(item.label==="Ride & Earn")chooseService("ride");if(item.label==="Rent an EV")chooseService("rent");if(item.label==="Charging stations")chooseService("charge");if(item.label==="Overview"){setService("ride");setMobileMenuOpen(false);}}}>
+          const Icon=item.icon; return <button key={item.label} className={activeNav===item.label?"nav-item active":"nav-item"} onClick={()=>{setActiveNav(item.label); if(item.label==="Ride & Earn")chooseService("ride");if(item.label==="Rent an EV")chooseService("rent");if(item.label==="Charging stations")chooseService("charge");if(item.label==="Overview"){setService("overview");setMobileMenuOpen(false);}}}>
             <Icon size={18}/><span>{item.label}</span>{item.label==="Charging stations"&&<span className="nav-new">NEW</span>}
           </button>;
         })}
@@ -93,6 +93,7 @@ function App() {
       </header>
 
       <div className="content">
+        {service === "overview" && <>
         <section className="welcome-row">
           <div><div className="eyebrow"><Sparkles size={14}/> YOUR ELECTRIC JOURNEY STARTS HERE</div><h1>{greeting}, Ritik <span className="wave">✳</span></h1><p className="welcome-sub">Where would you like to go today?</p></div>
           <div className="date-chip"><CalendarDays size={16}/> {todayLabel}</div>
@@ -136,7 +137,9 @@ function App() {
           </div>
         </section>
 
-        {service==="ride"&&<section className="work-panel">
+        </>}
+
+        {service==="ride"&&<section className="work-panel service-page">
           <div className="panel-heading"><div><span className="service-label">RIDE & EARN</span><h2>Plan your next ride</h2><p>Enter your pickup and destination to get started.</p></div><span className="panel-badge"><Bike size={15}/> Electric two-wheelers</span></div>
           <div className="ride-form">
             <label><span className="field-dot pickup-dot"/> <span className="field-copy">PICKUP LOCATION</span><input value={location} onChange={e=>setLocation(e.target.value)} placeholder="Enter pickup location"/></label>
@@ -147,23 +150,23 @@ function App() {
           <div className="panel-foot"><span><ShieldCheck size={15}/> Verified driver onboarding</span><span><Clock3 size={15}/> Quick booking experience</span></div>
         </section>}
 
-        {service==="rent"&&<section className="work-panel">
+        {service==="rent"&&<section className="work-panel service-page">
           <div className="panel-heading"><div><span className="service-label">FLEXIBLE EV RENTALS</span><h2>Find your ride to opportunity.</h2><p>Explore electric two-wheelers listed by our fleet partners.</p></div><span className="panel-badge"><ShieldCheck size={15}/> Partner supplied</span></div>
           {selectedVehicle===null?<div className="vehicle-grid">{vehicles.map(v=><article className="vehicle-card" key={v.id}><div className="vehicle-photo"><img src={v.image} alt={v.name}/><span>{v.tag}</span></div><div className="vehicle-info"><small>{v.kind}</small><h3>{v.name}</h3><div className="vehicle-meta"><span><Zap size={14}/>{v.range}</span><strong>{v.rate}<small>/ day</small></strong></div><button className="outline-btn" onClick={()=>setSelectedVehicle(v.id)}>View details <ArrowRight size={15}/></button></div></article>)}</div>:<div className="rental-detail"><button className="back-link" onClick={()=>setSelectedVehicle(null)}>← Back to vehicles</button><h3>{vehicles.find(v=>v.id===selectedVehicle)?.name}</h3><p>Choose how long you need the vehicle. This is a frontend preview; partner availability and booking will be connected later.</p><label className="days-label">Rental duration <select value={rentalDays} onChange={e=>setRentalDays(Number(e.target.value))}>{[1,2,3,7,14,30].map(d=><option value={d} key={d}>{d} {d===1?"day":"days"}</option>)}</select></label><div className="rental-total"><span>Estimated rental total</span><strong>{(Number(vehicles.find(v=>v.id===selectedVehicle)?.rate.replace("₹",""))*rentalDays).toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0})}</strong></div><button className="primary-btn" onClick={()=>notify("Rental selection saved in this demo. Real booking will be enabled after API integration.")}>Continue to booking <ArrowRight size={17}/></button></div>}
           <div className="panel-foot"><span><ShieldCheck size={15}/> Verified partner listings</span><span><CalendarDays size={15}/> Flexible rental durations</span></div>
         </section>}
 
-        {service==="charge"&&<section className="work-panel">
+        {service==="charge"&&<section className="work-panel service-page">
           <div className="panel-heading"><div><span className="service-label">CHARGING STATION FINDER</span><h2>Find power around you.</h2><p>Discover nearby charging locations and navigate to your choice.</p></div><span className="panel-badge"><LocateFixed size={15}/> Location based</span></div>
           <div className="station-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search station or area"/><button onClick={handleLocation}><LocateFixed size={16}/> Use my location</button></div>
           <div className="station-list">{filteredStations.map(s=><div className="station-row" key={s.id}><span className="station-icon"><Zap size={19}/></span><div className="station-copy"><strong>{s.name}</strong><small>{s.area} · {s.type}</small></div><span className="station-distance">{s.distance}</span><button className="icon-btn" aria-label={"Navigate to "+s.name} onClick={()=>notify("Navigation preview selected. Live GPS directions will be connected in the maps integration phase.")}><ArrowUpRight size={18}/></button></div>)}{filteredStations.length===0&&<p className="empty-state">No demo stations match that search. Try another area.</p>}</div>
           <div className="panel-foot"><span><MapPin size={15}/> Station discovery only</span><span><Compass size={15}/> Navigation, no charging booking</span></div>
         </section>}
 
-        <section className="bottom-grid">
+        {service === "overview" && <section className="bottom-grid">
           <div className="impact-card"><div className="impact-icon"><Leaf size={19}/></div><div className="eyebrow muted">A SMALLER FOOTPRINT</div><h3>Every electric trip<br/>moves us forward.</h3><p>Make a more thoughtful choice for your everyday commute.</p><button onClick={()=>notify("EV impact information will be expanded in a future release.")}>Discover the EV difference <ArrowRight size={15}/></button><div className="impact-decoration"><Leaf size={90}/></div></div>
           <div className="quick-card"><div className="quick-head"><div><div className="eyebrow muted">GETTING STARTED</div><h3>New to EV Mobility?</h3></div><span className="quick-spark"><Sparkles size={19}/></span></div><div className="quick-step"><span>01</span><div><strong>Choose your service</strong><small>Ride, rent or find a charging station.</small></div><ChevronRight size={17}/></div><div className="quick-step"><span>02</span><div><strong>Complete your details</strong><small>Set up your profile and preferences.</small></div><ChevronRight size={17}/></div><div className="quick-step"><span>03</span><div><strong>You're ready to go</strong><small>Enjoy a simpler electric journey.</small></div><ChevronRight size={17}/></div></div>
-        </section>
+        </section>}
         <footer className="footer"><Logo/><span>Move better. Move electric.</span><span>© 2026 EV Mobility</span></footer>
       </div>
     </main>
